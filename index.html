@@ -3,156 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>周辺視野・反射神経測定ツール (Go/No-Go)</title>
+    <title>反射神経測定 Pro (Final Edition)</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #f0f0f0;
-            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
-            overflow: hidden;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            margin: 0; padding: 0; background-color: #f0f0f0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent;
         }
-        #game-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            position: relative;
+        #game-container { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; position: relative; }
+        
+        #fixation-point { font-size: 60px; color: #333; display: none; z-index: 1; }
+        #target { width: 65px; height: 65px; position: absolute; display: none; cursor: pointer; z-index: 2; }
+        
+        .shape-circle { border-radius: 50%; }
+        .shape-square { border-radius: 8px; }
+        .shape-diamond { transform: rotate(45deg); }
+
+        #start-preview {
+            position: absolute; display: none; text-align: center; z-index: 50;
         }
-        /* 固定点 */
-        #fixation-point {
-            font-size: 60px;
-            color: #333;
-            display: none;
-            z-index: 1;
+        #preview-target {
+            width: 100px; height: 100px; margin: 0 auto 20px auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.15);
         }
-        /* ターゲット */
-        #target {
-            width: 65px;
-            height: 65px;
-            border-radius: 50%;
-            position: absolute;
-            display: none;
-            cursor: pointer;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            z-index: 2;
-        }
-        /* ミス通知 */
+
         #miss-notification {
-            position: absolute;
-            top: 25%;
-            width: 100%;
-            text-align: center;
-            font-size: clamp(60px, 10vw, 100px);
-            font-weight: bold;
-            color: #ff0000;
-            display: none;
-            z-index: 20;
-            text-shadow: 3px 3px 15px rgba(0,0,0,0.3);
-            pointer-events: none;
+            position: absolute; top: 25%; width: 100%; text-align: center;
+            font-size: clamp(60px, 10vw, 100px); font-weight: bold; color: #ff0000;
+            display: none; z-index: 20; text-shadow: 3px 3px 15px rgba(0,0,0,0.3); pointer-events: none;
         }
-        /* 左サイドUI（透過50%） */
+        
         #stats-ui {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(4px);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            display: none;
-            font-size: 20px;
-            line-height: 1.6;
-            min-width: 220px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            z-index: 10;
+            position: absolute; top: 30px; left: 30px; background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px); padding: 25px; border-radius: 12px;
+            font-size: 18px; display: none; min-width: 200px; z-index: 10;
         }
-        #stats-ui span {
-            font-weight: bold;
-            color: #007bff;
-        }
-        /* 注釈（下部） */
+        #stats-ui span { font-weight: bold; color: #007bff; }
+
         #instruction {
-            position: absolute;
-            bottom: 50px;
-            width: 100%;
-            text-align: center;
-            color: #444;
-            display: none;
-            font-size: clamp(18px, 4vw, 28px);
-            font-weight: bold;
-            letter-spacing: 2px;
-            z-index: 10;
+            position: absolute; bottom: 50px; width: 100%; text-align: center;
+            color: #444; display: none; font-size: clamp(18px, 4vw, 24px); font-weight: bold; z-index: 10;
         }
-        /* メニュー・リザルト用オーバーレイ */
+
         #overlay {
-            position: absolute;
-            z-index: 100;
-            text-align: center;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            max-width: 500px;
-            width: 90%;
+            position: absolute; z-index: 100; text-align: center; background: rgba(255, 255, 255, 0.95);
+            padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); max-width: 500px; width: 90%;
         }
-        #title {
-            margin-top: 0;
-            color: #333;
-        }
-        .regulations {
-            text-align: left;
-            margin: 20px auto;
-            display: inline-block;
-            font-size: 18px;
-            line-height: 1.8;
-            color: #444;
-        }
-        #detail-area {
-            display: none;
-            text-align: left;
-            background: #eee;
-            padding: 15px;
-            margin-top: 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #555;
-            line-height: 1.5;
-        }
-        .btn-group {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 25px;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            border: none;
-            border-radius: 8px;
-            transition: all 0.2s;
-        }
+
+        .mode-section { text-align: left; margin: 15px 0; background: #fff; padding: 15px; border-radius: 10px; border: 1px solid #ddd; }
+        .mode-section h3 { margin: 0 0 10px 0; font-size: 14px; color: #666; }
+        .radio-group { display: flex; gap: 15px; }
+        .radio-group label { cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px; font-size: 14px; }
+
+        #regulations-area { display: none; text-align: left; background: #f8f9fa; padding: 20px; margin: 15px 0; border-radius: 10px; line-height: 1.8; font-size: 14px; }
+        #regulations-area ul { padding-left: 20px; margin: 10px 0; }
+
+        .btn-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        button { padding: 15px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 8px; transition: 0.2s; }
         .primary-btn { background-color: #28a745; color: white; }
-        .primary-btn:hover { background-color: #218838; transform: translateY(-2px); }
-        .primary-btn:active { transform: translateY(0); }
+        .secondary-btn { background-color: #6c757d; color: white; }
         
-        .secondary-btn { background-color: #6c757d; color: white; font-size: 16px; }
-        .secondary-btn:hover { background-color: #5a6268; }
-        
-        .result-list {
-            text-align: left;
-            margin: 20px 0;
-            font-size: 18px;
-            border-top: 1px solid #ddd;
-            padding-top: 15px;
-        }
-        hr { border: 0; border-top: 1px solid #ddd; margin: 15px 0; }
+        .result-list { text-align: left; margin: 20px 0; font-size: 18px; border-top: 1px solid #ddd; padding-top: 15px; }
     </style>
 </head>
 <body>
@@ -160,6 +71,11 @@
 <div id="game-container">
     <div id="miss-notification">ミス！</div>
     
+    <div id="start-preview">
+        <div id="preview-target"></div>
+        <div id="preview-text" style="font-size: 24px; font-weight: bold;">準備...</div>
+    </div>
+
     <div id="stats-ui">
         <div>セット: <span id="current-set">0</span> / 5</div>
         <div>最新: <span id="last-time">-</span> ms</div>
@@ -168,27 +84,43 @@
 
     <div id="fixation-point">＋</div>
     <div id="target"></div>
-    <div id="instruction">中央の固定点（＋）を注視してください</div>
+    <div id="instruction"></div>
 
     <div id="overlay">
-        <h1 id="title">反射神経テスト</h1>
+        <h1 id="title">反射神経テスト Pro</h1>
         
         <div id="menu-content">
-            <div class="regulations">
-                1. <b>赤色</b>が出たらクリック<br>
-                2. <b>青色</b>が出たら無視<br>
-                3. 5回の平均で結果を算出
+            <div id="main-menu-options">
+                <div class="mode-section">
+                    <h3>1. 視野モード</h3>
+                    <div class="radio-group">
+                        <label><input type="radio" name="vision" value="peripheral" checked> 周辺視野</label>
+                        <label><input type="radio" name="vision" value="central"> 中心視野</label>
+                    </div>
+                </div>
+                <div class="mode-section">
+                    <h3>2. ターゲット設定</h3>
+                    <div class="radio-group">
+                        <label><input type="radio" name="colorMode" value="multi" checked> 3色混合</label>
+                        <label><input type="radio" name="colorMode" value="single"> 単色固定</label>
+                    </div>
+                </div>
             </div>
-            <div id="detail-area">
-                【詳細レギュレーション】<br>
-                ・ターゲット出現待機：1〜5秒（0.1s単位）<br>
-                ・青色出現率：初期80%。青が出るたびに指数関数的に低下<br>
-                ・青色出現上限：1セット最大5回まで<br>
-                ・ペナルティ：赤出現前の入力、または赤出現後1.5秒経過は「ミス」として1500ms記録
+
+            <div id="regulations-area">
+                <strong>【レギュレーション】</strong>
+                <ul>
+                    <li>指定されたターゲットのみクリックしてください</li>
+                    <li>色は「赤・青・緑」が登場します</li>
+                    <li>ターゲットの形状は毎ゲーム変わります</li>
+                    <li>はずれターゲットの出現確率は、出るたびに減少します</li>
+                    <li><b>ミスをした場合、その時点でゲーム終了となり結果が表示されます</b></li>
+                </ul>
             </div>
+
             <div class="btn-group">
                 <button id="start-btn" class="primary-btn">スタート</button>
-                <button id="detail-btn" class="secondary-btn">詳細ルールを表示</button>
+                <button id="reg-btn" class="secondary-btn">詳細 / レギュレーション</button>
             </div>
         </div>
 
@@ -203,211 +135,227 @@
 </div>
 
 <script>
-    // --- 定数設定 ---
     const TOTAL_SETS = 5;
-    const MAX_BLUE_LIMIT = 5;
-    const MIN_DISTANCE_FROM_CENTER = 180;
-    const PENALTY_TIME = 1500;
+    const MAX_FALSE_LIMIT = 8;
+    const COLORS = [
+        { name: '赤', code: '#ff4d4d' },
+        { name: '青', code: '#4d79ff' },
+        { name: '緑', code: '#28a745' }
+    ];
+    const SHAPES = ['shape-circle', 'shape-square', 'shape-diamond'];
 
-    // --- DOM要素 ---
-    const overlay = document.getElementById('overlay');
-    const menuContent = document.getElementById('menu-content');
-    const resultContent = document.getElementById('result-content');
-    const detailArea = document.getElementById('detail-area');
-    const detailBtn = document.getElementById('detail-btn');
-    const startBtn = document.getElementById('start-btn');
-    const retryBtn = document.getElementById('retry-btn');
-    const backToMenuBtn = document.getElementById('back-to-menu-btn');
-    const fixationPoint = document.getElementById('fixation-point');
-    const target = document.getElementById('target');
-    const statsUi = document.getElementById('stats-ui');
-    const instruction = document.getElementById('instruction');
-    const resultArea = document.getElementById('result-area');
-    const missNotification = document.getElementById('miss-notification');
-    const lastTimeDisplay = document.getElementById('last-time');
-    const avgTimeDisplay = document.getElementById('avg-time');
-    const currentSetDisplay = document.getElementById('current-set');
-
-    // --- ゲーム変数 ---
     let results = [];
     let setCounter = 0;
-    let blueInSetCount = 0;
-    let startTime;
+    let falseColorCount = 0;
     let targetActive = false;
     let gameActive = false;
     let timeoutId = null;
+    let startTime;
+    let targetColor, targetShapeClass, visionMode, colorMode;
 
-    // --- イベントリスナー ---
-    startBtn.addEventListener('click', startGame);
-    retryBtn.addEventListener('click', startGame);
-    backToMenuBtn.addEventListener('click', showMenu);
-    
-    detailBtn.addEventListener('click', () => {
-        const isHidden = detailArea.style.display === 'none' || detailArea.style.display === '';
-        detailArea.style.display = isHidden ? 'block' : 'none';
-        detailBtn.textContent = isHidden ? '詳細を閉じる' : '詳細ルールを表示';
-    });
+    const el = {
+        target: document.getElementById('target'),
+        instruction: document.getElementById('instruction'),
+        overlay: document.getElementById('overlay'),
+        menuContent: document.getElementById('menu-content'),
+        resultContent: document.getElementById('result-content'),
+        statsUi: document.getElementById('stats-ui'),
+        fixation: document.getElementById('fixation-point'),
+        resultArea: document.getElementById('result-area'),
+        miss: document.getElementById('miss-notification'),
+        startPreview: document.getElementById('start-preview'),
+        previewTarget: document.getElementById('preview-target'),
+        previewText: document.getElementById('preview-text'),
+        startBtn: document.getElementById('start-btn'),
+        regBtn: document.getElementById('reg-btn'),
+        regArea: document.getElementById('regulations-area'),
+        menuOptions: document.getElementById('main-menu-options'),
+        title: document.getElementById('title')
+    };
 
-    // 入力検知（マウス・キーボード・タッチ）
-    window.addEventListener('mousedown', (e) => { if(gameActive && e.button === 0) handleInput(); });
-    window.addEventListener('keydown', (e) => { if(gameActive && !e.repeat) handleInput(); });
-    window.addEventListener('touchstart', (e) => { if(gameActive) { e.preventDefault(); handleInput(); } }, {passive: false});
+    el.startBtn.addEventListener('click', prepareGame);
+    document.getElementById('retry-btn').addEventListener('click', prepareGame);
+    el.regBtn.addEventListener('click', toggleReg);
+    document.getElementById('back-to-menu-btn').addEventListener('click', showMenu);
 
-    // --- 関数 ---
+    function toggleReg() {
+        const isOpening = el.regArea.style.display !== 'block';
+        el.regArea.style.display = isOpening ? 'block' : 'none';
+        el.menuOptions.style.display = isOpening ? 'none' : 'block';
+        el.startBtn.style.display = isOpening ? 'none' : 'block';
+        el.regBtn.textContent = isOpening ? '戻る' : '詳細 / レギュレーション';
+    }
 
     function showMenu() {
-        overlay.style.display = 'block';
-        menuContent.style.display = 'block';
-        resultContent.style.display = 'none';
-        document.getElementById('title').textContent = "反射神経テスト";
-        statsUi.style.display = 'none';
-        fixationPoint.style.display = 'none';
-        instruction.style.display = 'none';
+        // UI基本表示のリセット
+        el.overlay.style.display = 'block';
+        el.menuContent.style.display = 'block';
+        el.resultContent.style.display = 'none';
+        el.statsUi.style.display = 'none';
+        el.fixation.style.display = 'none';
+        el.instruction.style.display = 'none';
+        el.startPreview.style.display = 'none';
+
+        // メニュー内状態のリセット
+        el.regArea.style.display = 'none';
+        el.menuOptions.style.display = 'block';
+        el.startBtn.style.display = 'block';
+        el.regBtn.textContent = '詳細 / レギュレーション';
+        el.title.textContent = '反射神経テスト Pro';
+    }
+
+    function prepareGame() {
+        visionMode = document.querySelector('input[name="vision"]:checked').value;
+        colorMode = document.querySelector('input[name="colorMode"]:checked').value;
+        results = []; setCounter = 0;
+
+        targetColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+        targetShapeClass = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+
+        el.overlay.style.display = 'none';
+        
+        el.previewTarget.className = targetShapeClass;
+        el.previewTarget.style.backgroundColor = targetColor.code;
+        el.previewText.innerHTML = colorMode === 'multi' ? 
+            `<span style="color:${targetColor.code}">${targetColor.name}</span> を狙え！` : "スタート！";
+        el.startPreview.style.display = 'block';
+
+        setTimeout(() => {
+            el.startPreview.style.display = 'none';
+            startGame();
+        }, 1000);
     }
 
     function startGame() {
-        results = [];
-        setCounter = 0;
-        overlay.style.display = 'none';
-        fixationPoint.style.display = 'block';
-        statsUi.style.display = 'block';
-        instruction.style.display = 'block';
+        el.fixation.style.display = 'block';
+        el.statsUi.style.display = 'block';
+        el.instruction.innerHTML = colorMode === 'multi' ? 
+            `<span style="color:${targetColor.code}">■</span> ${targetColor.name} をクリックしてください` :
+            `出現したらクリックしてください`;
+        el.instruction.style.display = 'block';
         updateStats();
         startNewSet();
     }
 
     function startNewSet() {
-        if (setCounter >= TOTAL_SETS) {
-            endGame();
-            return;
-        }
-        gameActive = true;
-        blueInSetCount = 0;
-        // 最初の待ち時間（1〜5秒）
-        const waitTime = Math.floor(Math.random() * 41 + 10) * 100;
+        if (setCounter >= TOTAL_SETS) { endGame(); return; }
+        gameActive = true; falseColorCount = 0;
+        const waitTime = Math.floor(Math.random() * 21 + 10) * 100;
         timeoutId = setTimeout(pickAndShowTarget, waitTime);
     }
 
     function pickAndShowTarget() {
-        target.style.display = 'none';
+        el.target.style.display = 'none';
         targetActive = false;
 
-        // 青の出現率：最初は80%、青が出るたびに急激に下がる
-        let blueChance = 0.8 * (1 - Math.pow(blueInSetCount / MAX_BLUE_LIMIT, 2));
-        if (blueInSetCount >= MAX_BLUE_LIMIT) blueChance = 0;
+        let isCorrectColor = true;
+        if (colorMode === 'multi') {
+            let blueChance = 0.8 * (1 - Math.pow(falseColorCount / MAX_FALSE_LIMIT, 1.5));
+            if (falseColorCount >= MAX_FALSE_LIMIT) blueChance = 0;
+            isCorrectColor = Math.random() > blueChance;
+        }
 
-        const isRed = Math.random() > blueChance;
+        let currentColor = isCorrectColor ? targetColor : 
+            COLORS.filter(c => c.name !== targetColor.name)[Math.floor(Math.random() * 2)];
+
+        el.target.className = targetShapeClass;
+        el.target.style.backgroundColor = currentColor.code;
+        el.target.dataset.type = isCorrectColor ? 'go' : 'nogo';
+
+        const pos = visionMode === 'central' ? 
+            { x: window.innerWidth/2 - 32, y: window.innerHeight/2 - 32 } : 
+            getRandomPosition();
         
-        target.style.backgroundColor = isRed ? '#ff4d4d' : '#4d79ff';
-        target.dataset.type = isRed ? 'go' : 'nogo';
-
-        const pos = getRandomPosition();
-        target.style.left = `${pos.x}px`;
-        target.style.top = `${pos.y}px`;
-        target.style.display = 'block';
+        el.target.style.left = `${pos.x}px`;
+        el.target.style.top = `${pos.y}px`;
+        el.target.style.display = 'block';
 
         targetActive = true;
         startTime = performance.now();
 
-        if (isRed) {
-            // 赤：1.5秒反応がない場合はペナルティ
-            timeoutId = setTimeout(() => {
-                if (targetActive) recordResult(PENALTY_TIME);
-            }, 1500);
+        if (isCorrectColor) {
+            timeoutId = setTimeout(() => { if (targetActive) triggerMiss("タイムアウト"); }, 1500);
         } else {
-            // 青：0.5〜1.5秒で消失
-            const blueDuration = Math.floor(Math.random() * 11 + 5) * 100;
+            const duration = Math.floor(Math.random() * 5 + 6) * 100;
             timeoutId = setTimeout(() => {
-                target.style.display = 'none';
-                targetActive = false;
-                blueInSetCount++;
-                // 青消失後の待ち時間（1〜2秒）
-                const nextWait = Math.floor(Math.random() * 11 + 10) * 100;
+                el.target.style.display = 'none'; targetActive = false; falseColorCount++;
+                const nextWait = Math.floor(Math.random() * 5 + 8) * 100;
                 timeoutId = setTimeout(pickAndShowTarget, nextWait);
-            }, blueDuration);
+            }, duration);
         }
     }
 
     function handleInput() {
-        if (targetActive && target.dataset.type === 'go') {
-            const reactionTime = Math.round(performance.now() - startTime);
-            recordResult(reactionTime);
-            return;
+        if (targetActive && el.target.dataset.type === 'go') {
+            recordResult(Math.round(performance.now() - startTime));
+        } else {
+            triggerMiss(targetActive ? "お手つき" : "フライング");
         }
-        triggerMiss();
     }
 
-    function triggerMiss() {
+    function triggerMiss(reason) {
         clearTimeout(timeoutId);
-        gameActive = false;
-        targetActive = false;
-        target.style.display = 'none';
-        missNotification.style.display = 'block';
+        gameActive = false; targetActive = false;
+        el.target.style.display = 'none';
+        el.miss.style.display = 'block';
+        el.miss.textContent = (reason === "フライング") ? "フライング！" : "ミス！";
         setTimeout(() => {
-            missNotification.style.display = 'none';
-            recordResult(PENALTY_TIME);
-        }, 1000);
+            el.miss.style.display = 'none';
+            endGame(true);
+        }, 800);
     }
 
     function recordResult(time) {
         clearTimeout(timeoutId);
-        gameActive = false;
-        targetActive = false;
-        target.style.display = 'none';
-        results.push(time);
-        setCounter++;
+        gameActive = false; targetActive = false;
+        el.target.style.display = 'none';
+        results.push(time); setCounter++;
         updateStats();
-        if (setCounter < TOTAL_SETS) {
-            setTimeout(startNewSet, 500);
-        } else {
-            endGame();
-        }
+        if (setCounter < TOTAL_SETS) setTimeout(startNewSet, 400);
+        else endGame();
     }
 
     function updateStats() {
-        currentSetDisplay.textContent = setCounter;
+        document.getElementById('current-set').textContent = setCounter;
         if (results.length > 0) {
-            const last = results[results.length - 1];
-            const avg = Math.round(results.reduce((a, b) => a + b) / results.length);
-            lastTimeDisplay.textContent = last;
-            avgTimeDisplay.textContent = avg;
-        } else {
-            lastTimeDisplay.textContent = '-';
-            avgTimeDisplay.textContent = '-';
+            document.getElementById('last-time').textContent = results[results.length - 1];
+            document.getElementById('avg-time').textContent = Math.round(results.reduce((a, b) => a + b) / results.length);
         }
     }
 
     function getRandomPosition() {
         const margin = 100;
-        const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight / 2;
         let x, y, dist;
         do {
             x = Math.random() * (window.innerWidth - margin * 2) + margin;
             y = Math.random() * (window.innerHeight - margin * 2) + margin;
-            dist = Math.hypot(x - centerX, y - centerY);
-        } while (dist < MIN_DISTANCE_FROM_CENTER);
+            dist = Math.hypot(x - window.innerWidth/2, y - window.innerHeight/2);
+        } while (dist < 180);
         return { x: x - 32, y: y - 32 };
     }
 
-    function endGame() {
+    function endGame(isMiss = false) {
         gameActive = false;
-        fixationPoint.style.display = 'none';
-        statsUi.style.display = 'none';
-        instruction.style.display = 'none';
-        overlay.style.display = 'block';
-        menuContent.style.display = 'none';
-        resultContent.style.display = 'block';
-        const avg = Math.round(results.reduce((a, b) => a + b) / results.length);
-        document.getElementById('title').textContent = "結果発表";
-        resultArea.innerHTML = `
+        el.statsUi.style.display = 'none'; el.fixation.style.display = 'none'; el.instruction.style.display = 'none';
+        el.overlay.style.display = 'block'; el.menuContent.style.display = 'none'; el.resultContent.style.display = 'block';
+        const avg = results.length > 0 ? Math.round(results.reduce((a, b) => a + b) / results.length) : 0;
+        el.title.textContent = isMiss ? "ゲームオーバー" : "リザルト";
+        el.resultArea.innerHTML = `
             <div class="result-list">
-                ${results.map((r, i) => `<div>セット ${i+1}: <b>${r} ms</b> ${r === 1500 ? '<span style="color:red">(ミス)</span>' : ''}</div>`).join('')}
+                <div style="margin-bottom:10px; color:#666; font-size:14px;">
+                    設定: ${visionMode === 'central' ? '中心' : '周辺'} / ${colorMode === 'multi' ? '3色' : '単色'}
+                </div>
+                ${results.map((r, i) => `<div>セット ${i+1}: <b>${r} ms</b></div>`).join('')}
+                ${isMiss ? `<div style="color:red; font-weight:bold; margin-top:5px;">※ミスにより中断 (${results.length}/${TOTAL_SETS} 達成)</div>` : ''}
                 <hr>
-                <div style="font-size:24px; margin-top:10px;">平均反応速度: <strong>${avg} ms</strong></div>
-            </div>
-        `;
+                <div style="font-size:22px;">平均反応速度: <strong>${avg || '-'} ms</strong></div>
+            </div>`;
     }
+
+    const handleAllInputs = (e) => { if(gameActive) { if(e.type === 'touchstart') e.preventDefault(); handleInput(); } };
+    window.addEventListener('mousedown', (e) => e.button === 0 && handleAllInputs(e));
+    window.addEventListener('keydown', (e) => !e.repeat && handleAllInputs(e));
+    window.addEventListener('touchstart', handleAllInputs, {passive: false});
 </script>
 </body>
 </html>
